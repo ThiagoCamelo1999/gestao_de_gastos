@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Controle de gastos</title>
+<style>
+:root{--blue:#244a73;--blue2:#3976a8;--bg:#f3f6fa;--muted:#667085;--line:#eaecf0}
+*{box-sizing:border-box}body{font-family:Arial,sans-serif;background:var(--bg);color:#1d2939;margin:0;padding:22px}
+main{max-width:1100px;margin:auto}h1{color:var(--blue);margin:0 0 6px}.sub{color:var(--muted);margin:0 0 20px}
+.cards,.due-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0 20px}
+.card,.panel{background:white;padding:16px;border-radius:12px;box-shadow:0 2px 8px #0000000d}
+.card small,.due-card small{color:var(--muted)}.value{font-size:23px;font-weight:bold;margin-top:7px}
+.due-card{background:white;border:1px solid var(--line);padding:15px;border-radius:12px}.due-card h3{margin:0 0 8px;color:var(--blue)}.due-value{font-size:21px;font-weight:bold}
+.panel{margin:18px 0}.panel h2{font-size:19px;margin:0 0 14px;color:var(--blue)}
+form{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1.4fr auto;gap:10px;align-items:end}
+label{font-size:12px;color:#475467;display:block;margin-bottom:5px}input,select{width:100%;padding:10px;border:1px solid #d0d5dd;border-radius:8px;font-size:14px;background:white}
+button{border:0;border-radius:8px;padding:10px 13px;cursor:pointer;font-weight:bold;background:#16834a;color:white}button.secondary{background:#667085}button.delete{background:#b42318;padding:7px 9px}button.add{background:var(--blue2);white-space:nowrap}
+.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px #0000000d;min-width:760px}
+th,td{padding:11px;text-align:left;border-bottom:1px solid var(--line)}th{background:var(--blue);color:white}tr.paid td{background:#e4f3e7;color:#39734a}tr.paid .expense-name{text-decoration:line-through}.actions{display:flex;gap:6px;align-items:center}.status{font-size:12px;color:var(--muted);margin-top:14px}
+@media(max-width:900px){
+ body{padding:16px}
+ form{grid-template-columns:repeat(2,minmax(0,1fr))}
+ form .wide{grid-column:1/-1}
+ .cards,.due-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:600px){
+ body{padding:10px}
+ main{width:100%}
+ h1{font-size:25px}
+ .sub{font-size:13px;line-height:1.5}
+ .cards,.due-cards{grid-template-columns:1fr;gap:9px}
+ .card,.due-card{padding:13px}
+ .value,.due-value{font-size:20px}
+ form{grid-template-columns:1fr;gap:12px}
+ form .wide{grid-column:auto}
+ form button{width:100%;min-height:44px}
+ .panel{padding:14px}
+ .table-wrap{overflow:visible}
+ table{min-width:0;width:100%;display:block;background:transparent;box-shadow:none}
+ thead{display:none}
+ tbody{display:grid;gap:12px}
+ tbody tr{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:13px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 8px #0000000d}
+ tbody td{display:block;padding:5px 2px;border:0;min-width:0;overflow-wrap:anywhere}
+ tbody td:nth-child(1){grid-column:1/-1;font-weight:bold;font-size:16px}
+ tbody td:nth-child(2)::before{content:"Valor: ";font-weight:bold;color:#475467}
+ tbody td:nth-child(3)::before{content:"Parcelas: ";font-weight:bold;color:#475467}
+ tbody td:nth-child(4)::before{content:"Vencimento: ";font-weight:bold;color:#475467}
+ tbody td:nth-child(5){grid-column:1/-1}
+ tbody td:nth-child(5)::before{content:"Observação: ";font-weight:bold;color:#475467}
+ tbody td:nth-child(6){grid-column:1/-1}
+ .actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ .actions button{min-height:40px;padding:9px 7px}
+ .actions button.delete{grid-column:1/-1}
+ tr.paid td{background:transparent}
+ .modal-backdrop{padding:10px;align-items:flex-end}
+ .modal{width:100%;max-height:92vh;border-radius:16px 16px 10px 10px;padding:16px}
+ .modal-actions{display:grid;grid-template-columns:1fr 1fr}
+ .modal-actions button{min-width:0;min-height:44px}
+}
+@media(min-width:601px) and (max-width:900px){
+ table{min-width:700px}
+ .table-wrap{overflow-x:auto}
+}
+
+.modal-backdrop{position:fixed;inset:0;background:#10182899;display:none;align-items:center;justify-content:center;padding:18px;z-index:1000}
+.modal-backdrop.open{display:flex}
+.modal{background:#fff;width:min(560px,100%);max-height:90vh;overflow:auto;border-radius:14px;padding:22px;box-shadow:0 18px 50px #0003}
+.modal h2{margin:0 0 6px;color:var(--blue)}
+.modal .modal-sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+.modal-grid{display:grid;grid-template-columns:1fr;gap:12px}
+.modal-grid .wide{grid-column:auto}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.modal-actions button{min-width:100px}
+@media(max-width:520px){.modal{padding:17px}}
+
+</style></head><body><main>
+<h1>Controle de gastos</h1><p class="sub">Cadastre novas compras, escolha o vencimento e marque cada conta como paga. Os totais são atualizados automaticamente.</p>
+<section class="cards">
+<div class="card"><small>Total cadastrado</small><div class="value" id="total">—</div></div>
+<div class="card"><small>Total faltante</small><div class="value" id="faltante">—</div></div>
+</section>
+<h2>Quanto falta pagar em cada vencimento?</h2>
+<section class="due-cards">
+<div class="due-card"><h3>Fatura do dia 05</h3><small>Total pendente</small><div class="due-value" id="due05">—</div></div>
+<div class="due-card"><h3>Fatura do dia 10</h3><small>Total pendente</small><div class="due-value" id="due10">—</div></div>
+<div class="due-card"><h3>Fatura do dia 25</h3><small>Total pendente</small><div class="due-value" id="due25">—</div></div>
+</section>
+<section class="panel">
+<h2>Adicionar nova compra ou dívida</h2>
+<form id="addForm">
+<div class="wide"><label for="name">Nome da compra / dívida</label><input id="name" required placeholder="Ex.: Compra no mercado"></div>
+<div><label for="amount">Valor (R$)</label><input id="amount" type="number" min="0.01" step="0.01" required placeholder="0,00"></div>
+<div><label for="day">Vencimento</label><select id="day"><option value="">Não definido</option><option value="05">Dia 05</option><option value="10">Dia 10</option><option value="25">Dia 25</option></select></div>
+<div><label for="installments">Parcelas / tipo</label><input id="installments" placeholder="Ex.: 3x, mensal"></div>
+<div><label for="notes">Observação</label><input id="notes" placeholder="Opcional"></div>
+<button class="add" type="submit">+ Cadastrar</button>
+</form>
+</section>
+<div class="table-wrap"><table><thead><tr><th>Despesa</th><th>Valor</th><th>Parcelas / tipo</th><th>Vencimento</th><th>Observação</th><th>Status / ação</th></tr></thead><tbody id="rows"></tbody></table></div>
+<p class="status">Os dados ficam salvos neste navegador e dispositivo. As contas antigas sem dia de vencimento anotado ficaram como “Não definido”; você pode editar o vencimento pelo botão “Editar”.</p>
+</main>
+<div class="modal-backdrop" id="editModal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+ <div class="modal">
+  <h2 id="editTitle">Editar gasto</h2>
+  <p class="modal-sub">Todos os dados do gasto aparecem aqui. Apague ou altere o que precisar e salve.</p>
+  <form id="editForm">
+   <div class="modal-grid">
+    <div class="wide"><label for="editName">Nome da compra / dívida</label><input id="editName" required></div>
+    <div><label for="editAmount">Valor (R$)</label><input id="editAmount" type="number" min="0.01" step="0.01" required></div>
+    <div><label for="editInstallments">Parcelas / tipo</label><input id="editInstallments" placeholder="Ex.: 3x, mensal, recorrente"></div>
+    <div><label for="editDay">Vencimento</label><select id="editDay"><option value="">Não definido</option><option value="05">Dia 05</option><option value="10">Dia 10</option><option value="25">Dia 25</option></select></div>
+    <div class="wide"><label for="editNotes">Observação</label><input id="editNotes" placeholder="Opcional"></div>
+   </div>
+   <div class="modal-actions">
+    <button type="button" class="secondary" id="cancelEdit">Cancelar</button>
+    <button type="submit">Salvar alterações</button>
+   </div>
+  </form>
+ </div>
+</div>
+
+<script>
+const initialItems=[{"name": "Ferreira Costa", "value": 55.08, "installments": "10x", "day": "", "notes": ""}, {"name": "Cinto Rebeka", "value": 20.0, "installments": "1x", "day": "", "notes": ""}, {"name": "Aliança", "value": 115.0, "installments": "10x", "day": "", "notes": ""}, {"name": "Americanas", "value": 25.0, "installments": "1x", "day": "", "notes": ""}, {"name": "Chinês", "value": 30.0, "installments": "1x", "day": "", "notes": ""}, {"name": "Diana Creme Cabelo", "value": 40.0, "installments": "1x", "day": "", "notes": ""}, {"name": "Brisanet", "value": 67.39, "installments": "1x", "day": "", "notes": ""}, {"name": "Cerâmica", "value": 52.67, "installments": "10x", "day": "", "notes": ""}, {"name": "Internet", "value": 61.24, "installments": "Mensal", "day": "", "notes": ""}, {"name": "Vestido", "value": 48.86, "installments": "3x", "day": "05", "notes": ""}, {"name": "Lembranças", "value": 29.99, "installments": "1x", "day": "05", "notes": ""}, {"name": "Cuba", "value": 46.26, "installments": "2x", "day": "10", "notes": "Shop"}, {"name": "Academia", "value": 100.0, "installments": "Recorrente", "day": "05", "notes": "Rec"}];
+const dataKey='controle-gastos-dados-v2', paidKey='controle-gastos-pagos-v2';
+let expenses=JSON.parse(localStorage.getItem(dataKey)||'null')||initialItems;
+let paid=JSON.parse(localStorage.getItem(paidKey)||'{}');
+const brl=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+function save(){localStorage.setItem(dataKey,JSON.stringify(expenses));localStorage.setItem(paidKey,JSON.stringify(paid));}
+function render(){
+ const tbody=document.getElementById('rows');
+ tbody.innerHTML='';
+
+ expenses.forEach((e,i)=>{
+  const tr=document.createElement('tr');
+  if(paid[i])tr.className='paid';
+  const day=String(e.day||'').trim().padStart(2,'0');
+  const due=['05','10','25'].includes(day)?'Dia '+day:'Não definido';
+
+  tr.innerHTML=`<td class="expense-name"></td><td>${brl(Number(e.value)||0)}</td><td></td><td>${due}</td><td></td><td><div class="actions"><button class="${paid[i]?'secondary':''}" data-action="paid" data-id="${i}">${paid[i]?'Desfazer':'Marcar paga'}</button><button class="secondary" data-action="edit" data-id="${i}">Editar</button><button class="delete" data-action="delete" data-id="${i}" aria-label="Excluir">X</button></div></td>`;
+  tr.children[0].textContent=e.name||'';
+  tr.children[2].textContent=e.installments||'—';
+  tr.children[4].textContent=e.notes||'—';
+  tbody.appendChild(tr);
+ });
+
+ const sum=expenses.reduce((s,e)=>s+(Number(e.value)||0),0);
+ const paidSum=expenses.reduce((s,e,i)=>s+(paid[i]?(Number(e.value)||0):0),0);
+ document.getElementById('total').textContent=brl(sum);
+ document.getElementById('faltante').textContent=brl(sum-paidSum);
+
+ // Atualiza os totais pendentes de cada vencimento.
+ ['05','10','25'].forEach(day=>{
+  const dueTotal=expenses.reduce((total,e,i)=>{
+   const expenseDay=String(e.day||'').trim().padStart(2,'0');
+   return expenseDay===day && !paid[i] ? total+(Number(e.value)||0) : total;
+  },0);
+  document.getElementById('due'+day).textContent=brl(dueTotal);
+ });
+
+ tbody.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+  const i=Number(b.dataset.id);
+  const action=b.dataset.action;
+
+  if(action==='paid'){
+   const e=expenses[i];
+   const match=String(e.installments||'').trim().match(/^(\d+)\s*x$/i);
+   if(match){
+    const remaining=Number(match[1]);
+    if(remaining<=1){
+     if(!confirm('Esta é a última parcela. Ao confirmar, a despesa será removida. Deseja continuar?'))return;
+     expenses.splice(i,1);
+     const next={};
+     Object.keys(paid).forEach(k=>{
+      const n=Number(k);
+      if(n<i)next[n]=paid[k];
+      else if(n>i)next[n-1]=paid[k];
+     });
+     paid=next;
+    }else{
+     e.installments=(remaining-1)+'x';
+     delete paid[i];
+    }
+   }else{
+    paid[i]=!paid[i];
+   }
+  }
+
+  if(action==='delete'){
+   if(!confirm('Excluir esta despesa?'))return;
+   expenses.splice(i,1);
+   const next={};
+   Object.keys(paid).forEach(k=>{
+    const n=Number(k);
+    if(n<i)next[n]=paid[k];
+    else if(n>i)next[n-1]=paid[k];
+   });
+   paid=next;
+  }
+
+  if(action==='edit'){
+   openEditModal(i);
+   return;
+  }
+
+  save();
+  render();
+ }));
+}
+document.getElementById('addForm').addEventListener('submit',ev=>{
+ ev.preventDefault();
+ const name=document.getElementById('name').value.trim();
+ const value=Number(document.getElementById('amount').value);
+ if(!name||!Number.isFinite(value)||value<=0)return;
+ expenses.push({name,value,day:document.getElementById('day').value,installments:document.getElementById('installments').value.trim(),notes:document.getElementById('notes').value.trim()});
+ save();ev.target.reset();render();
+});
+
+let editingIndex=null;
+const editModal=document.getElementById('editModal');
+const editForm=document.getElementById('editForm');
+function openEditModal(i){
+ editingIndex=i;
+ const e=expenses[i];
+ document.getElementById('editName').value=e.name||'';
+ document.getElementById('editAmount').value=Number(e.value)||'';
+ document.getElementById('editInstallments').value=e.installments||'';
+ document.getElementById('editDay').value=e.day||'';
+ document.getElementById('editNotes').value=e.notes||'';
+ editModal.classList.add('open');
+ document.getElementById('editName').focus();
+}
+function closeEditModal(){
+ editModal.classList.remove('open');
+ editingIndex=null;
+}
+document.getElementById('cancelEdit').addEventListener('click',closeEditModal);
+editModal.addEventListener('click',ev=>{if(ev.target===editModal)closeEditModal();});
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&editModal.classList.contains('open'))closeEditModal();});
+editForm.addEventListener('submit',ev=>{
+ ev.preventDefault();
+ if(editingIndex===null)return;
+ const name=document.getElementById('editName').value.trim();
+ const value=Number(document.getElementById('editAmount').value);
+ if(!name){alert('Informe um nome para o gasto.');return;}
+ if(!Number.isFinite(value)||value<=0){alert('Informe um valor válido.');return;}
+ const e=expenses[editingIndex];
+ e.name=name;
+ e.value=value;
+ e.installments=document.getElementById('editInstallments').value.trim();
+ e.day=document.getElementById('editDay').value;
+ e.notes=document.getElementById('editNotes').value.trim();
+ save();
+ closeEditModal();
+ render();
+});
+
+render();
+</script></body></html>
